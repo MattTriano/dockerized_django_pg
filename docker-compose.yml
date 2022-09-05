@@ -9,4 +9,18 @@ services:
       - "8000:8000"
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
-      - .:/code
+      - ./mysite:/code
+  database:
+    build:
+      context: ./
+      dockerfile: Dockerfiles/postgres.Dockerfile
+    env_file:
+      - dbcredentials.env
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - django_pg_data:/var/lib/postgresql/data/
+
+volumes:
+  django_pg_data
