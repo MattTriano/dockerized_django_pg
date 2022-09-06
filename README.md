@@ -127,7 +127,7 @@ and start it up via
 There isn't too much I want to change from the base image, but I'll still indicate the image in a separate Dockerfile, `postgres.Dockerfile` 
 
 ```text
-FROM postgres/postgres:14.5
+FROM postgres:14.5
 ```
 
 and I'll update the `docker-compose.yml` file with a definition for this service,
@@ -140,25 +140,25 @@ services:
     build:
       context: ./
       dockerfile: Dockerfiles/postgres.Dockerfile
-    env_file:
-      - dbcredentials.env
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: "${DB_USER}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+    ports:
+      - "5789:5432"
     volumes:
       - django_pg_data:/var/lib/postgresql/data/
 
 volumes:
-  django_pg_data    
+  django_pg_data:
 ```
 
-In the `docker-compose.yml`, we told docker to read a file named `dbcredentials.env` and set environment variables `POSTGRES_USER` to the value of variable `DB_USER` and `POSTGRES_PASSWORD` to the value of variable `DB_PASSWORD`, . So let's create that file and define variables `DB_USER` and `DB_PASSWORD`.
+In the `docker-compose.yml`, we told docker to set environment variables `POSTGRES_USER` to the value of variable `DB_USER` and `POSTGRES_PASSWORD` to the value of variable `DB_PASSWORD`. To resolve these values, docker will look for a file named `.env`. If it doesn't find that file, it will just use blank strings for those variables (even if you define an `env_file` with a name other than just `.env`) So let's create that file and define variables `DB_USER` and `DB_PASSWORD`.
 
 ```bash
-~/...$ touch dbcredentials.env
+~/...$ touch .env
 ```
 
-Open up that `dbcredentials.env` file and define your credentials for accessing the database
+Open up that `.env` file and define your credentials for accessing the database
 
 ```text
 DB_USER=matt
@@ -171,6 +171,27 @@ Note: if you want to keep your credentials from `.env` files private, you should
 
 The `database` service from the `docker-compose.yml` file also includes a volume definition connecting `django_pg_data` on the host machine to the path `/var/lib/postgresql/data/` (postgres's default location for storing database data). There's also a `volumes` definition at the bottom of the file listing the name `django_pg_data`, which tells docker to create a volume named `django_pg_data` somewhere on the host system. 
 
-```bash
-~/...$ python -m pip install python-dotenv
+#### Modify the django app to connect to the postgres database
+
+Open up the `mysite/mysite/settings.py` file, add in a line to `import os`, and change the `DATABASES["default"]` value from the `sqlite3` name and engine to 
+
+```python
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "postgres",
+        "USER": os.environ["POSTGRES_USER"],
+        "PASSWORD": os.environ["POSTGRES_PASSWORD"],
+        "HOST": "database",  # set in docker-compose.yml
+        "PORT": 5432,  # default postgres port
+    }
+}
 ```
+
+
+
+
+
+
+
+
