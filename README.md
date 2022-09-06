@@ -9,8 +9,8 @@ You'll need to have a development environment with django to develop your site. 
 (base) matt@matt:~/...$ conda deactivate
 matt@matt:~/...$ source .venv/bin/activate
 (.venv) matt@matt:~/...$ python -m pip install django
-(.venv) matt@matt:~/...$ python -m django --version
-4.1.1
+(.venv) matt@matt:~/...$ python -m pip install psycopg2-binary
+(.venv) matt@matt:~/...$ python -m pip install django-debug-toolbar
 ```
 **Note: from here on, assume the `.venv` env is activated unless otherwise indicated.**
 
@@ -167,6 +167,16 @@ DB_PASSWORD=matts_db_password
 
 Note: if you want to keep your credentials from `.env` files private, you should add `*.env` to your `.gitignore` file.
 
+and for the container serving django to connect to the database, you'll also have to add those environment variables to the `py` service specification.
+```yaml
+  py:
+    ...
+    environment:
+      POSTGRES_USER: "${DB_USER}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+    ...
+```
+
 #### Making a persistant postgres volume
 
 The `database` service from the `docker-compose.yml` file also includes a volume definition connecting `django_pg_data` on the host machine to the path `/var/lib/postgresql/data/` (postgres's default location for storing database data). There's also a `volumes` definition at the bottom of the file listing the name `django_pg_data`, which tells docker to create a volume named `django_pg_data` somewhere on the host system. 
@@ -188,10 +198,48 @@ DATABASES = {
 }
 ```
 
+Now your system should be ready to start up.
+
+```bash
+$ docker-compose build
+$ docker-compose up
+```
+
+If everything builds alright, get an interactive terminal to the container serving your django site (check `docker ps` for that container's name; it will probably be something like `django_postgres_docker_py_1`)
+
+```bash
+~/...$ docker exec -ti django_postgres_docker_py_1 /bin/bash
+```
+
+which will give you a bash terminal, from which you can migrate your initial database model and create a superuser
+
+```bash
+root@bc2fa6d66a31:/code# python manage.py migrate
+root@bc2fa6d66a31:/code# python manage.py createsuperuser
+```
 
 
 
 
 
 
+## Extras
 
+### Get an interactive terminal within your container
+To get an interactive terminal within your container, first determine the name of your `database` container via 
+
+```bash
+$ docker ps
+```
+
+then plug that container name into the command below
+
+```bash
+docker exec -ti <your_database_container> /bin/bash
+```
+
+#### Connect to your database via psql (from an interactive terminal)
+
+```bash
+root@<container_id_numbers>: /# psql -U <your DB_USER name>
+```
